@@ -14,6 +14,9 @@ import { distanceOnEarth, fmtDistance, bearingOnEarth, locationForQSONInfo } fro
 import { stylesForMap } from '../../OpMapTab/components/MapWithQSOs'
 import { Text } from 'react-native-paper'
 import { gridToLocation } from '@ham2k/lib-maidenhead-grid'
+import SpotItem from './SpotItem'
+import { useThemedStyles } from '../../../../styles/tools/useThemedStyles'
+import { prepareStyles } from './SpotList'
 
 const TRANSP_PNG = require('../../../../../assets/images/transp-16.png')
 
@@ -160,6 +163,8 @@ const MapMarkers = React.memo(function MapMarkers ({ spots, selectedUUID, mapSty
     }
   }, [ref, selectedUUID])
 
+  const listItemStyles = useThemedStyles(prepareStyles)
+
   return (
     <>
       {spots.map(({ spot, location, age, distance, distanceStr, bearingStr }) => (
@@ -174,26 +179,7 @@ const MapMarkers = React.memo(function MapMarkers ({ spots, selectedUUID, mapSty
             image={TRANSP_PNG}
           >
             <Callout onPress={() => onPress && onPress({ spot })}>
-              <View>
-                <Text style={ callsignStyle({ spot, styles }) }>
-                  {spot.their?.call}
-                </Text>
-                <Text style={{ color: '#333' }}>
-                  {truncate(spot.spot.label, 40)}
-                </Text>
-                <Text style={{ color: '#333' }}>
-                  {spot.mode}{' • '}{formatFreq(spot.freq)}{' • '}
-                  <Text style={{ fontWeight: 'bold', color: colorForText({ spot, styles }) }}>{spot.band}</Text>
-                </Text>
-                {distance && (
-                  <Text style={{ color: '#333' }}>
-                    {distanceStr}{' • '}{bearingStr}
-                  </Text>
-                )}
-                <Text style={{ color: '#333' }}>
-                  {fmtShortTimeZulu(spot.spot.timeInMillis)}{' ('}{fmtDateTimeRelative(spot.spot?.timeInMillis, { roundTo: 'minutes' })}{')'}
-                </Text>
-              </View>
+              <SpotItem key={spot.key} spot={spot} styles={listItemStyles} extendedWidth={false} />
             </Callout>
           </Marker>
           <Circle
@@ -215,7 +201,7 @@ function radiusForMarker ({ age, location, size, metersPerOneSpace }) {
   const latitude = Math.abs(location.latitude ?? location.lat)
   const latitudeScale = Math.cos(latitude * Math.PI / 180)
   const baseRadius = (metersPerOneSpace * size * latitudeScale) / 2
-  return baseRadius * (1.3 - age / 1800000.0 * 0.6)
+  return Math.max(baseRadius * (1.3 - age / 1800000.0 * 0.6), 10)
 }
 
 function colorForMarker ({ spot, styles }) {

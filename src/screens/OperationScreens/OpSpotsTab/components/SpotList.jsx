@@ -13,7 +13,7 @@ import SpotItem, { guessItemHeight } from './SpotItem'
 import { RefreshControl } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-function prepareStyles (themeStyles, themeColor) {
+export function prepareStyles (themeStyles, themeColor) {
   const DEBUG = false
 
   const commonStyles = {
