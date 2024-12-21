@@ -31,6 +31,7 @@ import HamQTHExtension from './data/hamqth/HamQTHExtension'
 import Ham2KLoFiSyncExtension from './data/ham2k-lofi-sync/Ham2KLoFiSyncExtension'
 
 import NYQPExtension from './contests/nyqp/NYQPExtension'
+import RSGBBackpackersExtension from './contests/rsgb-backpackers/RSGBBackpackersExtension'
 
 import RadioCommands from './commands/RadioCommands'
 import TimeCommands from './commands/TimeCommands'
@@ -59,6 +60,7 @@ const loadExtensions = () => async (dispatch, getState) => {
   registerExtension(SiOTAExtentsion)
 
   registerExtension(NYQPExtension)
+  registerExtension(RSGBBackpackersExtension)
 
   registerExtension(RadioCommands)
   registerExtension(TimeCommands)
