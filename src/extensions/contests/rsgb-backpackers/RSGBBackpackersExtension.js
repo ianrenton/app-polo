@@ -13,10 +13,8 @@ import { findRef, replaceRef } from '../../../tools/refTools'
 import ThemedTextInput from '../../../screens/components/ThemedTextInput'
 import { ListRow } from '../../../screens/components/ListComponents'
 import { Ham2kListSection } from '../../../screens/components/Ham2kListSection'
-import { POSTCODE_PREFIXES } from './RSGBBackpackersLocations'
+import { POSTCODE_DISTRICTS } from './RSGBBackpackersLocations'
 import { Text } from 'react-native-paper'
-import { NY_COUNTIES, NYQP_LOCATIONS } from '../nyqp/NYQPLocations'
-import RSTInput from '../../../screens/components/RSTInput'
 
 const Info = {
   key: 'rsgb-backpackers',
@@ -206,26 +204,6 @@ function mainExchangeForOperation (props) {
   // @todo check validity of ref?.location
 
   fields.push(
-    <RSTInput
-      {...rstFieldProps}
-      key="sent"
-      innerRef={rstFieldRefs.shift()}
-      value={qso?.our?.sent ?? ''}
-      label="Sent"
-      fieldId={'ourSent'}
-    />
-  )
-  fields.push(
-    <RSTInput
-      {...rstFieldProps}
-      key="received"
-      innerRef={rstFieldRefs.shift()}
-      value={qso?.their?.sent || ''}
-      label="Rcvd"
-      fieldId={'theirSent'}
-    />
-  )
-  fields.push(
     <ThemedTextInput
       {...props}
       key={`${Info.key}/grid`}
@@ -252,7 +230,7 @@ function mainExchangeForOperation (props) {
       innerRef={refStack.shift()}
       style={[styles.input, { minWidth: styles.oneSpace * 10, flex: 1 }]}
       textStyle={styles.text.callsign}
-      label={'Postcode'}
+      label={'Postcode District'}
       placeholder=''
       mode={'flat'}
       uppercase={true}
@@ -282,14 +260,14 @@ export function ActivityOptions (props) {
   }, [dispatch, operation, ref])
 
   const [postcodeDesc, isValid] = useMemo(() => {
-    if (POSTCODE_PREFIXES.includes(ref?.postcode)) {
-      return [`Postcode prefix: ${ref?.postcode}`, true]
+    if (POSTCODE_DISTRICTS[ref?.postcode]) {
+      return [`Postcode district: ${ref?.postcode}`, true]
     } else if (ref?.postcode === 'DX') {
       return ['DX selected, your station is outside the UK.', true]
     } else if (ref?.postcode?.length === 2) {
-      return [`${ref?.postcode} not valid! Please enter a two-letter UK postcode prefix, or "GY", "JE" or "IM" for crown dependencies, or "DX".`, false]
+      return [`${ref?.postcode} not valid! Please enter a UK postcode district, or "GY", "JE" or "IM" for crown dependencies, or "DX".`, false]
     } else {
-      return ['Please enter a two-letter UK postcode prefix, or "GY", "JE" or "IM" for crown dependencies, or "DX".', false]
+      return ['Please enter a UK postcode district, or "GY", "JE" or "IM" for crown dependencies, or "DX".', false]
     }
   }, [ref?.postcode])
 
@@ -299,7 +277,7 @@ export function ActivityOptions (props) {
         <ThemedTextInput
           style={[styles.input, { marginTop: styles.oneSpace, flex: 1 }]}
           textStyle={styles.text.callsign}
-          label={'Postcode Prefix'}
+          label={'Postcode District'}
           mode={'flat'}
           uppercase={true}
           noSpaces={true}
