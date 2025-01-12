@@ -1,5 +1,6 @@
 /*
  * Copyright ©️ 2024 Sebastian Delmont <sd@ham2k.com>
+ * Copyright ©️ 2024 Ian Renton <ian@ianrenton.com>
  *
  * This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
  * If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -15,6 +16,7 @@ import { ListRow } from '../../../screens/components/ListComponents'
 import { Ham2kListSection } from '../../../screens/components/Ham2kListSection'
 import { POSTCODE_DISTRICTS } from './RSGBBackpackersLocations'
 import { Text } from 'react-native-paper'
+import { fmtTimestamp } from '../../../tools/timeFormats'
 
 const Info = {
   key: 'rsgb-backpackers',
@@ -70,9 +72,9 @@ const ReferenceHandler = {
   }) => {
     if (ref?.type === Info?.key) {
       return [{
-        format: 'cabrillo',
+        format: 'reg1test',
         nameTemplate: settings.useCompactFileNames ? `{call}-${Info.shortName}-{compactDate}` : `{date} {call} for ${Info.shortName}`,
-        exportType: 'rsgb-backpackers-cabrillo',
+        exportType: 'rsgb-backpackers-reg1test',
         titleTemplate: `{call}: ${Info.name} on {date}`
       }]
     }
@@ -92,98 +94,86 @@ const ReferenceHandler = {
 
     if (qsoRef?.location) {
       fields.push({ SRX_STRING: qsoRef.location })
-    } else {
-      if (qso?.their?.guess?.entityCode === 'K' || qso?.their?.guess?.entityCode === 'VE') {
-        fields.push({ SRX_STRING: qso?.their?.state ?? qso?.their?.guess?.state })
-      } else {
-        fields.push({ SRX_STRING: 'DX' })
-      }
     }
 
     return fields
   },
 
-  cabrilloHeaders: ({
+  reg1testHeaders: ({
     operation,
+    qsos,
     settings,
     headers
   }) => {
     const ref = findRef(operation, Info.key)
 
-    let ourLocations = ref.location
-    if (ref?.location?.match(SLASH_OR_COMMA_REGEX)) {
-      ourLocations = ref.location.split(SLASH_OR_COMMA_REGEX, 2)
-    } else {
-      ourLocations = [ref.location]
+    headers.push(['TName', 'RSGB-BACKPACKERS'])
+    // Start and end date, YYYYMMDD format, semicolon separated. Blank if no QSOs exist.
+    let dateField = ''
+    if (qsos && qsos.length) {
+      dateField = fmtTimestamp(qsos[0].startAtMillis).substring(0, 8) + ';' + fmtTimestamp(qsos[qsos.length - 1].endAtMillis).substring(0, 8)
     }
+    headers.push(['TDate', dateField])
+    // Station callsign. Fall back to operator call if not present.
+    headers.push(['PCall', operation.stationCall || settings.operatorCall])
+    // Grid reference
+    headers.push(['PWWLo', operation.grid])
+    // Own exchange (postcode district)
+    headers.push(['PExch', ref?.postcode])
+    // Contest section
+    // @todo contest section. 5B/25H. Require user selection?
+    headers.push(['PSect', 'SINGLE-OP MIXED'])
+    // Frequency band. Fixed for this contest
+    headers.push(['PBand', '145 MHz'])
+    // Operator callsign. Fall back to station call if not present.
+    headers.push(['RCall', operation.operatorCall || settings.stationCall])
+    // Transmit power, Watts. Power of last QSO used. Blank if no QSOs exist.
+    let powerField = ''
+    if (qsos && qsos.length) {
+      powerField = qsos[qsos.length - 1].power ? qsos[qsos.length - 1].power : ''
+    }
+    headers.push(['SPowe', powerField])
 
-    headers.push(['CONTEST', 'RSGB-BACKPACKERS'])
-    headers.push(['CALLSIGN', operation.stationCall || settings.operatorCall])
-    headers.push(['LOCATION', ourLocations.join('/')])
-    headers.push(['NAME', ''])
-    if (operation.local?.operatorCall) headers.push(['OPERATORS', operation.local.operatorCall])
-    if (operation.grid) headers.push(['GRID-LOCATOR', operation.grid])
+    // Personally identifying information that I do not believe we have to ask the user for or provide for a successful
+    // file generation
+    headers.push(['PAdr1', ''])
+    headers.push(['PAdr2', ''])
+    headers.push(['PClub', ''])
+    headers.push(['RName', ''])
+    headers.push(['RAdr1', ''])
+    headers.push(['RAdr2', ''])
+    headers.push(['RPoCo', ''])
+    headers.push(['RCity', ''])
+    headers.push(['RCoun', ''])
+    headers.push(['RPhon', ''])
+    headers.push(['RHBBS', ''])
+    headers.push(['MOpe1', ''])
+    headers.push(['MOpe2', ''])
+
+    // Station & equipment information that I do not believe we have to ask the user for or provide for a successful
+    // file generation
+    headers.push(['STXEq', ''])
+    headers.push(['SRXEq', ''])
+    headers.push(['SAnte', ''])
+    headers.push(['SAntH', ''])
+
+    // Claimed score parameters. Recorded as blank in the REG1TEST file as these are calculated server-side anyway, and
+    // this spares us from having to calculate them
+    headers.push(['CQSOs', ''])
+    headers.push(['CQSOP', ''])
+    headers.push(['CWWLs', ''])
+    headers.push(['CWWLB', ''])
+    headers.push(['CExcs', ''])
+    headers.push(['CExcB', ''])
+    headers.push(['CDXCs', ''])
+    headers.push(['CDXCB', ''])
+    headers.push(['CToSc', ''])
+    headers.push(['CODXC', ''])
+
     return headers
   },
 
-  qsoToCabrilloParts: ({
-    qso,
-    ref,
-    operation,
-    settings
-  }) => {
-    let ourLocations = ref.location
-    let weAreInState
-    // @todo logic
-    // if (ref?.location?.match(SLASH_OR_COMMA_REGEX)) {
-    //   ourLocations = ref.location.split(SLASH_OR_COMMA_REGEX, 2)
-    //   weAreInState = ref.location.split(SLASH_OR_COMMA_REGEX).every(c => NY_COUNTIES[c])
-    // } else {
-    //   ourLocations = [ref.location]
-    //   weAreInState = !!NY_COUNTIES[ref.location]
-    // }
-
-    const qsoRef = findRef(qso, Info.key)
-
-    let theirLocations
-    let theyAreInState
-    // @todo logic
-    // if (qsoRef?.location?.match(SLASH_OR_COMMA_REGEX)) {
-    //   theirLocations = qsoRef?.location.split(SLASH_OR_COMMA_REGEX, 2)
-    //   theyAreInState = theirLocations.every(c => NY_COUNTIES[c])
-    // } else if (qsoRef?.location) {
-    //   theirLocations = [qsoRef?.location]
-    //   theyAreInState = !!NY_COUNTIES[qsoRef?.location]
-    // } else {
-    //   if (qso?.their?.guess?.entityCode === 'K' || qso?.their?.guess?.entityCode === 'VE') {
-    //     theirLocations = [qso?.their?.state ?? qso?.their?.guess?.state]
-    //   } else {
-    //     theirLocations = 'DX'
-    //   }
-    //   theyAreInState = false
-    // }
-
-    if (!weAreInState && !theyAreInState) {
-      return []
-    }
-
-    const ourCall = operation.stationCall || settings.operatorCall
-
-    const rows = []
-    for (const ourLocation of ourLocations) {
-      for (const theirLocation of theirLocations) {
-        rows.push([
-          (ourCall ?? ' ').padEnd(13, ' '),
-          (qso?.mode === 'CW' || qso?.mode === 'RTTY' ? '599' : '59').padEnd(3, ' '),
-          (ourLocation ?? ' ').padEnd(6, ' '),
-          (qso?.their?.call ?? '').padEnd(13, ' '),
-          (qso?.mode === 'CW' || qso?.mode === 'RTTY' ? '599' : '59').padEnd(3, ' '),
-          (theirLocation ?? ' ').padEnd(6, ' ')
-        ])
-      }
-    }
-    return rows
-  },
+  // @todo implement qsoToReg1testParts
 
   relevantInfoForQSOItem: ({
     qso,
@@ -200,8 +190,12 @@ function mainExchangeForOperation (props) {
 
   const fields = []
 
-  let isValid = true
-  // @todo check validity of ref?.location
+  let isValid
+  if (POSTCODE_DISTRICTS[ref?.location]) {
+    isValid = true
+  } else if (ref?.location?.match('DX')) {
+    isValid = true
+  }
 
   fields.push(
     <ThemedTextInput
@@ -231,7 +225,7 @@ function mainExchangeForOperation (props) {
       style={[styles.input, { minWidth: styles.oneSpace * 10, flex: 1 }]}
       textStyle={styles.text.callsign}
       label={'Postcode District'}
-      placeholder=''
+      placeholder=""
       mode={'flat'}
       uppercase={true}
       noSpaces={true}

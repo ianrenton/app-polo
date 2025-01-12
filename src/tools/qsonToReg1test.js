@@ -26,7 +26,7 @@ export function qsonToReg1test ({ operation, qsos, settings, handler }) {
   str += '[REG1TEST;1]\n'
   if (handler.reg1testHeaders) {
     str += handler
-      .reg1testHeaders({ operation, settings, headers: [] })
+      .reg1testHeaders({ operation, qsos, settings, headers: [] })
       .map((header) => header[1] ? `${header[0]}=${header[1]}` : '')
       .filter(x => x)
       .join('\n') + '\n'
