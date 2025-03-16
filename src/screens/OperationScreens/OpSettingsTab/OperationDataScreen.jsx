@@ -45,7 +45,7 @@ export default function OperationDataScreen (props) {
     let options = { title: 'Operation Data' }
     if (operation?.stationCall) {
       options = {
-        subTitle: buildTitleForOperation({ operatorCall: operation.local?.operatorCall, stationCall: operation.stationCallPlus, title: operation.title, userTitle: operation.userTitle })
+        subTitle: buildTitleForOperation({ operatorCall: operation.local?.operatorCall, stationCall: operation.stationCallPlus || operation.stationCall, title: operation.title, userTitle: operation.userTitle })
       }
     } else {
       options = { subTitle: 'New Operation' }
@@ -155,7 +155,7 @@ export default function OperationDataScreen (props) {
               key={option.fileName}
               title={option.exportTitle}
               description={option.fileName}
-              left={() => <List.Icon style={{ marginLeft: styles.oneSpace * 2 }} icon={option.icon ?? option.handler.icon ?? 'file-outline'} />}
+              left={() => <List.Icon style={{ marginLeft: styles.oneSpace * 2 }} color={option.devMode ? styles.colors.devMode : styles.colors.onBackground} icon={option.icon ?? option.handler.icon ?? 'file-outline'} />}
               onPress={() => readyToExport && handleExports({ options: [option] })}
               descriptionStyle={option.devMode ? { color: styles.colors.devMode } : {}}
               titleStyle={option.devMode ? { color: styles.colors.devMode } : {}}
@@ -173,6 +173,20 @@ export default function OperationDataScreen (props) {
           onPress={() => handleImportADIF()}
         />
       </Ham2kListSection>
+
+      { settings.devMode && (
+
+        <Ham2kListSection title={'Ham2K LoFi Sync'} titleStyle={{ color: styles.colors.devMode }}>
+          <Ham2kListItem
+            title="Operation"
+            description={operation.uuid}
+            left={() => <List.Icon style={{ marginLeft: styles.oneSpace * 2 }} icon="sync-circle" color={styles.colors.devMode} />}
+            titleStyle={{ color: styles.colors.devMode }}
+            descriptionStyle={{ color: styles.colors.devMode }}
+            onPress={() => {}}
+          />
+        </Ham2kListSection>
+      )}
     </ScrollView>
   )
 }

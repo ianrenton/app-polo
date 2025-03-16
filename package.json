@@ -1,7 +1,7 @@
 {
   "name": "ham2k-polo",
-  "version": "24.12.99-pre0",
-  "versionName": "January '25 (pre 0)",
+  "version": "25.2.0-pre9",
+  "versionName": "February '25 (pre 9)",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -11,14 +11,15 @@
     "test": "jest"
   },
   "dependencies": {
-    "@ham2k/lib-callsigns": "^0.2",
-    "@ham2k/lib-country-files": "^0.10",
+    "@ham2k/lib-callsigns": "0.3.1",
+    "@ham2k/lib-country-files": "0.10.20250131",
     "@ham2k/lib-dxcc-data": "^0.3",
     "@ham2k/lib-format-tools": "^0.3",
     "@ham2k/lib-maidenhead-grid": "^0.2",
     "@ham2k/lib-operation-data": "^0.8.4",
     "@ham2k/lib-qson-adif": "^0.5",
     "@ham2k/lib-qson-tools": "^0.6",
+    "@nozbe/microfuzz": "^1.0.0",
     "@react-native-async-storage/async-storage": "^2.1",
     "@react-native-community/geolocation": "^3.2",
     "@react-native-community/netinfo": "^11.3",
@@ -38,6 +39,7 @@
     "fast-levenshtein": "^3.0.0",
     "fast-xml-parser": "^4.4",
     "fuzzball": "^2.1",
+    "just-diff": "^6.0.2",
     "proj4": "^2.11",
     "react": "18.2.0",
     "react-error-boundary": "^4.0.13",

@@ -19,8 +19,10 @@ import FDExtension from './activities/fd/FDExtension'
 import WFDExtension from './activities/wfd/WFDExtension'
 import CustomExtension from './activities/custom/CustomExtension'
 import WWBOTAExtension from './activities/wwbota/WWBOTAExtension'
+import BCAExtension from './activities/bca/BCAExtension'
 import ECAExtension from './activities/eca/ECAExtension'
 import ELAExtension from './activities/ela/ELAExtension'
+import BLHAExtension from './activities/blha/BLHAExtension'
 import SiOTAExtentsion from './activities/siota/SiOTAExtension'
 
 import CallNotesExtension from './data/call-notes/CallNotesExtension'
@@ -42,9 +44,14 @@ import MiscCommands from './commands/MiscCommands'
 import SatellitesExtension from './activities/satellites/SatellitesExtension'
 import WABExtension from './other/wab/WABExtension'
 
-const loadExtensions = () => async (dispatch, getState) => {
-  dispatch(addRuntimeMessage('Loading extensions'))
+export const loadEarlyExtensions = () => async (dispatch, getState) => {
   registerExtension(DevModeExtension)
+  registerExtension(Ham2KLoFiSyncExtension)
+  await activateEnabledExtensions(dispatch, getState)
+}
+
+export const loadExtensions = () => async (dispatch, getState) => {
+  dispatch(addRuntimeMessage('Loading extensions'))
   registerExtension(ADIFExtension)
   registerExtension(CountryFilesExtension)
   registerExtension(POTAExtension)
@@ -55,8 +62,10 @@ const loadExtensions = () => async (dispatch, getState) => {
   registerExtension(WFDExtension)
   registerExtension(FDExtension)
   registerExtension(WWBOTAExtension)
+  registerExtension(BCAExtension)
   registerExtension(ECAExtension)
   registerExtension(ELAExtension)
+  registerExtension(BLHAExtension)
   registerExtension(SiOTAExtentsion)
 
   registerExtension(NYQPExtension)
@@ -74,8 +83,6 @@ const loadExtensions = () => async (dispatch, getState) => {
   registerExtension(QRZExtension)
   registerExtension(HamDBExtension)
   registerExtension(HamQTHExtension)
-
-  registerExtension(Ham2KLoFiSyncExtension)
 
   registerExtension(SatellitesExtension)
 

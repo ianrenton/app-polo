@@ -17,7 +17,7 @@ import { scoringHandlersForOperation } from '../../../../../extensions/scoring'
 import { bearingForQSON, distanceForQSON, fmtDistance } from '../../../../../tools/geoTools'
 import { startOfDayInMillis, yesterdayInMillis } from '../../../../../tools/timeTools'
 import { Ham2kMarkdown } from '../../../../components/Ham2kMarkdown'
-import { useCallLookup } from '../../../OpInfoTab/components/useCallLookup'
+import { useCallLookup } from './useCallLookup'
 import { useSelector } from 'react-redux'
 import { selectOperationCallInfo } from '../../../../../store/operations'
 import { selectRuntimeOnline } from '../../../../../store/runtime'
@@ -88,19 +88,19 @@ export function CallInfo ({ qso, qsos, sections, operation, style, themeColor, u
   const styles = useThemedStyles(prepareStyles, themeColor)
   const online = useSelector(selectRuntimeOnline)
   const ourInfo = useSelector(state => selectOperationCallInfo(state, operation?.uuid))
-  // console.log('\n\nCallInfo render')
-  const { call, guess, lookup, refs } = useCallLookup(qso)
 
-  // useEffect(() => {
-  //   console.log('CallInfo effect')
-  // }, [call, guess])
+  const { call, guess, lookup, refs, status, when } = useCallLookup(qso)
 
-  // console.log('CallInfo render with', { call, guessLocation: guess?.locationLabel, name: guess?.name, state: guess?.state })
   useEffect(() => { // Merge all data sources and update guesses and QSO
-    updateQSO && updateQSO({ their: { guess, lookup } })
-    // Ignore warning about `updateQSO
-    //   eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guess, lookup])
+    // console.log('CallInfo effect', { qsoCall: qso?.their?.call, qsoName: qso?.their?.guess?.name, qsoStatus: qso?.their?.lookup?.status, lookupCall: call, lookupName: guess?.name, lookupStatus: status })
+    if (qso?.their?.call === call && status && qso?.their?.lookup?.status !== status) {
+      // console.log('-- updateQSO!')
+      // We need to first clear the guess and lookup, otherwise the new values will be merged with the old ones
+      updateQSO && updateQSO({ their: { guess: undefined, lookup: undefined } })
+      // Then we update the QSO with the new values
+      updateQSO && updateQSO({ their: { guess, lookup: { ...lookup, status } } })
+    }
+  }, [updateQSO, guess, lookup, call, qso?.their?.call, qso?.their?.lookup?.status, status, qso?.their?.guess?.state, qso?.their?.guess?.name, when])
 
   const [locationInfo, flag] = useMemo(() => {
     let isOnTheGo = (lookup?.dxccCode && lookup?.dxccCode !== guess.dxccCode)
@@ -176,19 +176,18 @@ export function CallInfo ({ qso, qsos, sections, operation, style, themeColor, u
     if (guess.note) {
       parts.push(guess.note)
     } else {
-      // if (qrz?.error) parts.push(qrz.error)
+      if (lookup?.error && call?.length > 3) parts.push(lookup.error)
       parts.push(qso?.their?.name ?? guess.name)
     }
 
     return parts.filter(x => x).join(' • ')
-  }, [qso?.their?.name, guess.name, guess.note])
+  }, [guess.note, guess.name, lookup.error, call?.length, qso?.their?.name])
 
   const scoreInfo = useMemo(() => {
     const scoringHandlers = scoringHandlersForOperation(operation, settings)
 
     const lastSection = sections && sections[sections.length - 1]
-
-    const scores = scoringHandlers.map(({ handler, ref }) => handler.scoringForQSO({ qso, qsos, score: lastSection?.scores?.[ref.key], operation, ref })).filter(x => x)
+    const scores = scoringHandlers.map(({ handler, ref }) => handler.scoringForQSO({ qso, qsos, score: lastSection?.scores?.[ref.type || ref.key], operation, ref })).filter(x => x)
 
     return scores
   }, [operation, qso, qsos, sections, settings])
@@ -199,6 +198,7 @@ export function CallInfo ({ qso, qsos, sections, operation, style, themeColor, u
       const messageLevelPair = scoreInfo.sort((a, b) => (b.value ?? 0) - (a.value ?? 0)).map(score => {
         if (score?.notices && score?.notices[0]) return [MESSAGES_FOR_SCORING[`${score.type}.${score?.notices[0]}`] ?? MESSAGES_FOR_SCORING[score?.notices[0]] ?? score?.notices[0], 'notice']
         if (score?.alerts && score?.alerts[0]) return [MESSAGES_FOR_SCORING[`${score.type}.${score?.alerts[0]}`] ?? MESSAGES_FOR_SCORING[score?.alerts[0]] ?? score?.alerts[0], 'alert']
+        if (score?.infos && score?.infos[0]) return [score?.infos[0], 'info']
         return []
       }).filter(x => x.length)[0]
 

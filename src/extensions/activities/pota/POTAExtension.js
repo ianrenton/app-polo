@@ -10,13 +10,17 @@ import { filterRefs, findRef, refsToString } from '../../../tools/refTools'
 
 import { Info } from './POTAInfo'
 import { POTAActivityOptions } from './POTAActivityOptions'
-import { potaFindParkByReference, registerPOTAAllParksData } from './POTAAllParksData'
+import { potaFindParkByReference, potaFindParksByLocation, registerPOTAAllParksData } from './POTAAllParksData'
 import { POTALoggingControl } from './POTALoggingControl'
 import { POTAPostSpot } from './POTAPostSpot'
 import { apiPOTA } from '../../../store/apis/apiPOTA'
 import { bandForFrequency } from '@ham2k/lib-operation-data'
 import { LOCATION_ACCURACY } from '../../constants'
 import { ConfirmFromSpotsHook } from './POTAConfirmFromSpots'
+import { parseCallsign } from '@ham2k/lib-callsigns'
+import { gridToLocation } from '@ham2k/lib-maidenhead-grid'
+import { distanceOnEarth } from '../../../tools/geoTools'
+import { annotateFromCountryFile } from '@ham2k/lib-country-files'
 
 const Extension = {
   ...Info,
@@ -168,6 +172,29 @@ const ReferenceHandler = {
       return { name: Info.unknownReferenceName ?? 'Unknown reference', ...ref }
     }
     return result
+  },
+
+  extractTemplate: ({ ref, operation }) => {
+    return { type: ref.type }
+  },
+
+  updateFromTemplateWithDispatch: ({ ref, operation }) => async (dispatch) => {
+    if (operation?.grid) {
+      let info = parseCallsign(operation.stationCall || '')
+      info = annotateFromCountryFile(info)
+      const [lat, lon] = gridToLocation(operation.grid)
+
+      let nearby = await potaFindParksByLocation(info.dxccCode, lat, lon, 0.25)
+      nearby = nearby.map(result => ({
+        ...result,
+        distance: distanceOnEarth(result, { lat, lon })
+      })).sort((a, b) => (a.distance ?? 9999999999) - (b.distance ?? 9999999999))
+
+      if (nearby.length > 0) return { type: ref.type, ref: nearby[0]?.ref }
+      else return { type: ref.type, name: 'No parks nearby!' }
+    } else {
+      return { type: ref.type }
+    }
   },
 
   suggestOperationTitle: (ref) => {
