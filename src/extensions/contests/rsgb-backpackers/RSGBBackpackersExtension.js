@@ -122,7 +122,7 @@ const ReferenceHandler = {
     headers.push(['PExch', ref?.postcode])
     // Contest section
     // @todo contest section. 5B/25H. Require user selection?
-    headers.push(['PSect', 'SINGLE-OP MIXED'])
+    headers.push(['PSect', '5B'])
     // Frequency band. Fixed for this contest
     headers.push(['PBand', '145 MHz'])
     // Operator callsign. Fall back to station call if not present.
@@ -173,7 +173,10 @@ const ReferenceHandler = {
     return headers
   },
 
-  // @todo implement qsoToReg1testParts
+  // @todo implement
+  qsoToReg1testParts: ({ qso, operation, ref }) => {
+    return qso
+  },
 
   relevantInfoForQSOItem: ({
     qso,
