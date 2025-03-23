@@ -66,7 +66,7 @@ export default function OperationDataScreen (props) {
         let info = parseCallsign(call)
         info = annotateFromCountryFile(info)
         if (info.entityPrefix) {
-          info = { ...info, ...DXCC_BY_PREFIX[info.entityPrefix] }
+          info = { ...info, ...DXCC_BY_PREFIX[info?.entityPrefix] }
         }
         return info
       }))
@@ -91,8 +91,7 @@ export default function OperationDataScreen (props) {
     dispatch(generateExportsForOptions(operation.uuid, options)).then((paths) => {
       if (paths?.length > 0) {
         Share.open({
-          urls: paths.map(p => `file://${p}`),
-          type: 'text/plain' // There is no official mime type for our files
+          urls: paths.map(p => `file://${p}`)
         }).then((x) => {
           console.info('Shared', x)
         }).catch((e) => {
@@ -109,9 +108,10 @@ export default function OperationDataScreen (props) {
   const handleImportADIF = useCallback(() => {
     DocumentPicker.pickSingle({ mode: 'import', copyTo: 'cachesDirectory' }).then(async (file) => {
       const filename = decodeURIComponent(file.fileCopyUri.replace('file://', ''))
-      const count = await dispatch(importADIFIntoOperation(filename, operation))
+      const { adifCount, importCount } = await dispatch(importADIFIntoOperation(filename, operation, qsos))
       trackEvent('import_adif', {
-        import_count: count,
+        import_count: importCount,
+        adif_count: adifCount,
         qso_count: operation.qsoCount,
         refs: (operation.refs || []).map(r => r.type).join(',')
       })
@@ -123,11 +123,11 @@ export default function OperationDataScreen (props) {
         reportError('Error importing ADIF', error)
       }
     })
-  }, [dispatch, operation])
+  }, [dispatch, operation, qsos])
 
   const selectedExportOptions = useMemo(() => exportOptions.filter(option => (settings.exportTypes?.[option.exportType] ?? option.selectedByDefault) !== false), [exportOptions, settings.exportTypes])
 
-  const exportTitle = useMemo(() => {
+  const exportLabel = useMemo(() => {
     if (selectedExportOptions.length === 0) return 'Select from the export options below'
     if (selectedExportOptions.length === 1 && exportOptions.length === 1) return 'Export 1 file'
     if (selectedExportOptions.length === 1) return 'Export 1 selected file'
@@ -139,7 +139,7 @@ export default function OperationDataScreen (props) {
     <ScrollView style={{ flex: 1 }}>
       <Ham2kListSection title={'Export QSOs'}>
         <Ham2kListItem
-          title={exportTitle}
+          title={exportLabel}
           left={() => <List.Icon style={{ marginLeft: styles.oneSpace * 2 }} icon="share" />}
           onPress={() => readyToExport && handleExports({ options: selectedExportOptions })}
           style={{ opacity: readyToExport ? 1 : 0.5 }}
@@ -153,7 +153,7 @@ export default function OperationDataScreen (props) {
             />
             <Ham2kListItem
               key={option.fileName}
-              title={option.exportTitle}
+              title={option.exportLabel}
               description={option.fileName}
               left={() => <List.Icon style={{ marginLeft: styles.oneSpace * 2 }} color={option.devMode ? styles.colors.devMode : styles.colors.onBackground} icon={option.icon ?? option.handler.icon ?? 'file-outline'} />}
               onPress={() => readyToExport && handleExports({ options: [option] })}

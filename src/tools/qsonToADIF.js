@@ -7,20 +7,35 @@
 
 import packageJson from '../../package.json'
 import { findBestHook } from '../extensions/registry'
+import { basePartialTemplates, compileTemplateForOperation, extraDataForTemplates, templateContextForOneExport } from '../store/operations'
+import { selectExportSettings } from '../store/settings'
 import { sanitizeToISO8859 } from './stringTools'
 import { fmtADIFDate, fmtADIFTime } from './timeFormats'
 
 import { adifModeAndSubmodeForMode, frequencyForBand, modeForFrequency } from '@ham2k/lib-operation-data'
 
-export function qsonToADIF ({ operation, settings, qsos, handler, title, exportType, privateExport }) {
+export function qsonToADIF ({ operation, settings, qsos, handler, format, title, exportType, privateExport, ADIFNotesTemplate, ADIFCommentTemplate, ADIFQslMsgTemplate }) {
   privateExport = privateExport ?? (exportType === 'full-adif')
 
+  const templates = {
+    key: `${handler.key}-${format}-${exportType ?? 'export'}`
+  }
+
+  templates.exportSettings = selectExportSettings({ settings }, templates.key)
+  templates.context = templateContextForOneExport({ settings, operation, handler })
+  templates.partials = basePartialTemplates({ settings })
+  templates.data = extraDataForTemplates({ settings })
+
+  templates.notesTemplate = compileTemplateForOperation(templates.exportSettings?.ADIFNotesTemplate || ADIFNotesTemplate || '{{>ADIFNotes}}', templates)
+  templates.commentsTemplate = compileTemplateForOperation(templates.exportSettings?.ADIFCommentTemplate || ADIFCommentTemplate || '{{>ADIFComment}}', templates)
+  templates.qslmsgTemplate = compileTemplateForOperation(templates.exportSettings?.ADIFQslMsgTemplate || ADIFQslMsgTemplate || '{{>ADIFQslMsg}}', templates)
+  console.log('qsl message template', templates.qslmsgTemplate)
   const common = {
     refs: operation.refs,
     grid: operation.grid,
-    stationCall: operation.stationCall ?? settings.operatorCall
+    stationCall: operation.stationCall ?? settings.operatorCall,
+    templates
   }
-  const operationWithoutRefs = { ...operation, refs: [] }
 
   if (operation.stationCall !== settings.operatorCall) {
     common.operatorCall = settings.operatorCall
@@ -38,37 +53,48 @@ export function qsonToADIF ({ operation, settings, qsos, handler, title, exportT
   if (operation.userTitle) str += adifField('X_HAM2K_OP_TITLE', escapeForHeader(operation.userTitle), { newLine: true })
   if (operation.notes && privateExport) str += adifField('X_HAM2K_OP_NOTES', escapeForHeader(operation.notes), { newLine: true })
   if (handler.adifFieldsForHeader) {
-    str += escapeForHeader(handler.adifFieldsForHeader({ qsos, operation, common, mainHandler: true, privateExport }) ?? []).join('\n')
+    str += escapeForHeader(handler.adifFieldsForHeader({ qsos, operation, common, mainHandler: true, privateExport, templates }) ?? []).join('\n')
   }
-  if (handler?.adifHeaderComment) str += escapeForHeader(handler.adifHeaderComment({ qsos, operation, common, mainHandler: true, privateExport })) + '\n'
+  if (handler?.adifHeaderComment) str += escapeForHeader(handler.adifHeaderComment({ qsos, operation, common, mainHandler: true, privateExport, templates })) + '\n'
   str += '<EOH>\n'
 
   qsos.forEach(qso => {
     if (qso.deleted) return
 
+    // Get the base handler's field combinations for this QSO
+    // it might return an array of arrays,
+    // meaning this QSO has to be represented by multiple ADIF rows (think POTA P2P, or QSO Party county line operations)
     let handlerFieldCombinations
     if (handler?.adifFieldCombinationsForOneQSO) {
-      handlerFieldCombinations = handler.adifFieldCombinationsForOneQSO({ qso, operation, common, exportType, mainHandler: true, privateExport })
+      handlerFieldCombinations = handler.adifFieldCombinationsForOneQSO({ qso, operation, common, exportType, mainHandler: true, privateExport, templates })
     } else if (handler?.adifFieldsForOneQSO) {
-      handlerFieldCombinations = [handler.adifFieldsForOneQSO({ qso, operation, common, exportType, mainHandler: true, privateExport })]
+      handlerFieldCombinations = [handler.adifFieldsForOneQSO({ qso, operation, common, exportType, mainHandler: true, templates, privateExport })]
     } else {
       handlerFieldCombinations = [[]]
     }
 
     if (handlerFieldCombinations === false || handlerFieldCombinations[0] === false) return
 
+    // Now, for each field combination, we will generate an ADIF row
     handlerFieldCombinations.forEach((combinationFields, n) => {
-      let fields = adifFieldsForOneQSO({ qso, operation, common, privateExport, timeOffset: n * 1000 })
+      // We start with the general ADIF fields
+      let fields = adifFieldsForOneQSO({ qso, operation, common, privateExport, templates, timeOffset: n * 1000 })
+      // Then we append the fields from the main handler's combinations
       fields = fields.concat(combinationFields)
 
-      ;(qso.refs || []).forEach(ref => {
-        const exportHandler = findBestHook(`ref:${ref.type}`)
-        if (exportHandler && exportHandler.key !== handler.key && exportHandler.adifFieldsForOneQSO) {
-          const refFields = exportHandler.adifFieldsForOneQSO({ qso, operation: operationWithoutRefs, common, exportType, ref, privateExport }) || []
+      // And finally, we look at any handlers for other refs in the operation, or refs in the QSO itself
+      // and ask them for more fields to add to this QSO.
+      ;[...qso.refs || [], ...operation.refs || []].forEach(ref => {
+        const secondaryRefHandler = findBestHook(`ref:${ref.type}`)
+
+        if (secondaryRefHandler?.key === handler.key) return // Skip if it happens to be the same as the main handler
+
+        if (secondaryRefHandler && secondaryRefHandler.key !== handler.key && secondaryRefHandler.adifFieldsForOneQSO) {
+          const refFields = secondaryRefHandler.adifFieldsForOneQSO({ qso, operation, common, exportType, ref, privateExport, templates }) || []
           refFields.forEach(refField => {
             const existingField = fields.find(field => Object.keys(field)[0] === Object.keys(refField)[0])
             if (existingField) {
-              // Another field with the same name already exists. Keep the first one defined and ignore this one
+              // If another field with the same name already exists. Keep the first one defined and ignore this one
               // unless it is `false`, in which case the field should be removed.
               if (refField[1] === false) {
                 existingField[1] = false
@@ -105,9 +131,9 @@ function modeToADIF (mode, freq, qsoInfo) {
   }
 }
 
-function adifFieldsForOneQSO ({ qso, operation, common, privateExport, timeOffset }) {
+function adifFieldsForOneQSO ({ qso, operation, common, privateExport, templates, timeOffset }) {
   timeOffset = timeOffset ?? 0
-  return [
+  const fields = [
     { CALL: qso.their.call },
     ...modeToADIF(qso.mode, qso.freq, qso?.our),
     { BAND: qso.band && qso.band !== 'other' ? qso.band : undefined },
@@ -121,8 +147,6 @@ function adifFieldsForOneQSO ({ qso, operation, common, privateExport, timeOffse
     { STX_STRING: qso.our.exchange },
     { STATION_CALLSIGN: qso.our.call || common.stationCall },
     { OPERATOR: qso.our.operatorCall || common.operatorCall || qso.our.call || common.stationCall },
-    { NOTES: privateExport && (qso.notes) },
-    { COMMENT: privateExport && (qso.notes) },
     { GRIDSQUARE: privateExport && (qso.their?.grid ?? qso.their?.guess?.grid) },
     { MY_GRIDSQUARE: privateExport && (qso?.our?.grid ?? common.grid) },
     { NAME: privateExport && (qso.their?.name ?? qso.their?.guess?.name) },
@@ -134,6 +158,41 @@ function adifFieldsForOneQSO ({ qso, operation, common, privateExport, timeOffse
     { ITUZ: qso.their?.ituZone ?? qso.their?.guess?.ituZone },
     { ARRL_SECT: qso.their.arrlSection }
   ]
+
+  const templateContext = { ...templates.context, qso: { ...qso, notes: privateExport ? '' : qso.notes } }
+  let val
+  if (templates.notesTemplate) {
+    try {
+      val = templates.notesTemplate(templateContext, { data: templates.data, partials: templates.partials })
+      val = val.replaceAll(/\s+/g, ' ').trim()
+    } catch (e) {
+      console.error('Error compiling notes template', e)
+      val = `ERROR: ${e.message}`
+    }
+    if (val) fields.push({ NOTES: val })
+  }
+  if (templates.commentsTemplate) {
+    try {
+      val = templates.commentsTemplate(templateContext, { data: templates.data, partials: templates.partials })
+      val = val.replaceAll(/\s+/g, ' ').trim()
+    } catch (e) {
+      console.error('Error compiling comments template', e)
+      val = `ERROR: ${e.message}`
+    }
+    if (val) fields.push({ COMMENT: val })
+  }
+  if (templates.qslmsgTemplate) {
+    try {
+      val = templates.qslmsgTemplate(templateContext, { data: templates.data, partials: templates.partials })
+      val = val.replaceAll(/\s+/g, ' ').trim()
+    } catch (e) {
+      console.error('Error compiling qslmsg template', e)
+      val = `ERROR: ${e.message}`
+    }
+    if (val) fields.push({ QSLMSG: val })
+  }
+
+  return fields
 }
 
 function adifRow (fields) {

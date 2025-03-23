@@ -47,11 +47,39 @@ export const settingsSlice = createSlice({
       const { key, ...rest } = action.payload
       state.extensions = state.extensions || {}
       state.extensions[key] = { ...state.extensions[key] || {}, ...rest }
+    },
+    setExportSettings: (state, action) => {
+      const { key, ...rest } = action.payload
+      state.exports = state.exports || {}
+      state.exports[key] = { ...state.exports[key] || {}, ...rest }
+    },
+    mergeSettings: (state, action) => {
+      deepMergeState(state, action.payload)
     }
   }
 })
 
-export const { setOperatorCall, setOnboarded, setAccountInfo, setSettings, setExtensionSettings } = settingsSlice.actions
+export const { setOperatorCall, setOnboarded, setAccountInfo, setSettings, setExtensionSettings, setExportSettings, mergeSettings } = settingsSlice.actions
+
+function deepMergeState (state, data, visited = undefined) {
+  visited = visited || new Set()
+  visited.add(data)
+
+  // Then merge keys, recursively
+  for (const key of Object.keys(data || {})) {
+    const value = data[key]
+    if (typeof value === 'object' && !Array.isArray(value) && !visited.has(value)) {
+      if (Object.keys(value || {}).length === 0) {
+        state[key] = {}
+      } else {
+        state[key] = state[key] || {}
+        deepMergeState(state[key], value)
+      }
+    } else {
+      state[key] = value
+    }
+  }
+}
 
 export const selectSettings = createSelector(
   (state) => state?.settings,
@@ -110,6 +138,12 @@ export const selectExtensionSettings = createSelector(
     extensionsSettings = extensionsSettings || {}
     return extensionsSettings[key] || {}
   }
+)
+
+export const selectExportSettings = createSelector(
+  (state, key) => state?.settings?.exports,
+  (state, key) => key,
+  (exportsSettings, key) => exportsSettings?.[key] || {}
 )
 
 export const selectOperatorCall = createSelector(

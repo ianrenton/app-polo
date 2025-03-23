@@ -66,7 +66,16 @@ const ActivityHook = {
 
   Options: SOTAActivityOptions,
 
-  generalHuntingType: ({ operation, settings }) => Info.huntingType
+  generalHuntingType: ({ operation, settings }) => Info.huntingType,
+
+  sampleOperations: ({ settings, callInfo }) => {
+    return [
+      // Regular Activation
+      { refs: [{ type: Info.activationType, ref: 'A/BC-1234', name: 'Example Summit', shortName: 'Example Summit', program: Info.shortName, label: `${Info.shortName} A/BC-1234: Example Summit`, shortLabel: `${Info.shortName} A/BC-1234` }] },
+      // Hunting in a different operation
+      { refs: [{}], qsos: [{ refs: [{ type: Info.huntingType, ref: 'A/BC-1234', name: 'Example Summit', shortName: 'Example Summit', program: Info.shortName, label: `${Info.shortName} A/BC-1234: Example Summit`, shortLabel: `${Info.shortName} A/BC-1234` }] }] }
+    ]
+  }
 }
 
 const SpotsHook = {
@@ -183,7 +192,9 @@ const ReferenceHandler = {
           location: data.region,
           grid: data.grid,
           accuracy: LOCATION_ACCURACY.ACCURATE,
-          label: `${Info.shortName} ${ref.ref}: ${data.name}`
+          label: `${Info.shortName} ${ref.ref}: ${data.name}`,
+          shortLabel: `${Info.shortName} ${ref.ref}`,
+          program: Info.shortName
         }
       } else {
         return { ...ref, name: Info.unknownReferenceName ?? 'Unknown reference' }
@@ -227,22 +238,24 @@ const ReferenceHandler = {
       return [{
         format: 'adif',
         exportType: `${Info.key}-activator`,
-        exportData: { refs: [ref] },
-        nameTemplate: settings.useCompactFileNames ? '{call}@{ref}-{compactDate}' : '{date} {call} at {ref}',
-        titleTemplate: `{call}: ${Info.shortName} at ${[ref.ref, ref.name].filter(x => x).join(' - ')} on {date}`
+        exportName: 'SOTA Activation',
+        exportData: { refs: [ref] }, // exports only see this one ref
+        nameTemplate: '{{>RefActivityName}}',
+        titleTemplate: '{{>RefActivityTitle}}',
+        ADIFCommentTemplate: 's{{qso.our.sent}} r{{qso.their.sent}} {{>ADIFNotes}}'
       }]
     } else { // "export" hook
-      const hasSOTA = qsos?.find(q => findRef(q, Info.huntingType))
+      const hasSOTA = qsos?.find(q => findRef(q, Info.huntingType) && !q.deleted)
       const isSOTAActivation = findRef(operation, Info.activationType)
       if (!hasSOTA || isSOTAActivation) return null
-      console.log('SOTA Hunter')
       return [{
         format: 'adif',
         exportType: `${Info.key}-hunter`,
-        templateData: { modifier: 'SOTA Hunted', modifierDashed: 'sota-hunted' },
-        nameTemplate: settings.useCompactFileNames ? '{call}@{modifierDashed}-{titleDashed}-{compactDate}' : '{date} {call} {modifier} {title}',
-        titleTemplate: `{call}: ${Info.shortName} at ${[ref.ref, ref.name].filter(x => x).join(' - ')} on {date}`,
-        exportTitle: 'SOTA Hunted'
+        exportName: 'SOTA Hunter',
+        templateData: { handlerShortName: 'SOTA Hunted', handlerName: 'SOTA Hunted', includeTime: true },
+        nameTemplate: '{{>OtherActivityName}}',
+        titleTemplate: '{{>OtherActivityTitle}}',
+        ADIFCommentTemplate: 's{{qso.our.sent}} r{{qso.their.sent}} {{>ADIFNotes}}'
       }]
     }
   },
@@ -256,9 +269,10 @@ const ReferenceHandler = {
     const fields = []
     if (activationRef) fields.push({ MY_SOTA_REF: activationRef.ref })
     if (huntingRef) fields.push({ SOTA_REF: huntingRef.ref })
+
     // SOTA does not save signal reports, so most operators like to include this in the comments
     // Also, SOTA does not process the NOTES field, so we include our notes and signal reports in the COMMENT field
-    fields.push({ COMMENT: [`s${qso.our.sent} r${qso.their.sent}`, qso.notes, qso.comments].filter(x => x).join(' - ') })
+    // fields.push({ COMMENT: [`s${qso.our.sent} r${qso.their.sent}`, qso.notes, qso.comments].filter(x => x).join(' - ') })
 
     return fields
   },

@@ -47,7 +47,14 @@ const ActivityHook = {
   },
   Options: SiOTAActivityOptions,
 
-  generalHuntingType: ({ operation, settings }) => Info.huntingType
+  generalHuntingType: ({ operation, settings }) => Info.huntingType,
+
+  sampleOperations: ({ settings, callInfo }) => {
+    return [
+      // Regular Activation
+      { refs: [{ type: Info.activationType, ref: 'VK-ABC123', name: 'Example Silo', shortName: 'Example Silo', program: Info.shortName, label: `${Info.shortName} VK-ABC123: Example Silo`, shortLabel: `${Info.shortName} VK-ABC123` }] }
+    ]
+  }
 }
 
 const HunterLoggingControl = {
@@ -104,7 +111,9 @@ const ReferenceHandler = {
         state: data.state,
         grid: data.grid,
         accuracy: LOCATION_ACCURACY.ACCURATE,
-        label: `${Info.shortName} ${ref.ref}: ${data.name}`
+        label: `${Info.shortName} ${ref.ref}: ${data.name}`,
+        shortLabel: `${Info.shortName} ${ref.ref}`,
+        program: Info.shortName
       }
     } else {
       return { ...ref, name: Info.unknownReferenceName ?? 'Unknown reference' }
@@ -147,18 +156,20 @@ const ReferenceHandler = {
     if (ref?.type === Info.activationType && ref?.ref) {
       return [{
         format: 'adif',
-        exportData: { refs: [ref] },
-        nameTemplate: settings.useCompactFileNames ? '{call}@{ref}-{compactDate}' : '{date} {call} at {ref}',
-        titleTemplate: `{call}: ${Info.shortName} at ${[ref.ref, ref.name].filter(x => x).join(' - ')} on {date}`
+        exportData: { refs: [ref] }, // exports only see this one ref
+        nameTemplate: '{{>RefActivityName}}',
+        titleTemplate: '{{>RefActivityTitle}}'
       }]
     }
   },
 
   adifFieldsForOneQSO: ({ qso, operation }) => {
     const huntingRefs = filterRefs(qso, Info.huntingType)
-
-    if (huntingRefs) return ([{ SIG: 'SIOTA' }, { SIG_INFO: huntingRefs.map(ref => ref.ref).filter(x => x).join(',') }])
-    else return []
+    const activationRef = findRef(operation, Info.activationType)
+    const fields = []
+    if (huntingRefs.length > 0) fields.push({ SIG: 'SIOTA' }, { SIG_INFO: huntingRefs.map(ref => ref.ref).filter(x => x).join(',') })
+    if (activationRef) fields.push({ MY_SIG: 'SIOTA' }, { MY_SIG_INFO: activationRef.ref })
+    return fields
   },
 
   adifFieldCombinationsForOneQSO: ({ qso, operation }) => {

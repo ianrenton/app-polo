@@ -38,7 +38,15 @@ const ActivityHook = {
   ...Info,
   MainExchangePanel: null,
   Options: BCAActivityOptions,
-  postSpot: BCAPostSpot
+  postSpot: BCAPostSpot,
+
+  sampleOperations: ({ settings, callInfo }) => {
+    return [
+      // Regular Activation
+      { refs: [{ type: Info.activationType, ref: 'ON-01012', program: Info.shortName, name: 'Example Castle', shortName: 'Example Castle', label: `${Info.shortName} ON-01012: Example Castle`, shortLabel: `${Info.shortName} ON-01012` }] }
+    ]
+  }
+
 }
 
 const ReferenceHandler = {
@@ -64,10 +72,12 @@ const ReferenceHandler = {
           location: reference.region,
           grid: reference.grid,
           accuracy: LOCATION_ACCURACY.REASONABLE,
-          label: `${Info.shortName} ${ref.ref}: ${reference.name}`
+          label: `${Info.shortName} ${ref.ref}: ${reference.name}`,
+          shortLabel: `${Info.shortName} ${ref.ref}`,
+          program: Info.shortName
         }
       } else {
-        return { ...ref, name: Info.unknownReferenceName ?? 'Unknown reference' }
+        return { ...ref, name: Info.unknownReferenceName ?? 'Unknown reference', program: Info.shortName }
       }
     }
   },
@@ -107,9 +117,9 @@ const ReferenceHandler = {
     if (ref?.type === Info.activationType && ref?.ref) {
       return [{
         format: 'adif',
-        exportData: { refs: [ref] },
-        nameTemplate: settings.useCompactFileNames ? '{call} @ {ref} {compactDate}' : '{date} {call} at {ref}',
-        titleTemplate: `{call}: ${Info.shortName} at ${[ref.ref, ref.name].filter(x => x).join(' - ')} on {date}`
+        exportData: { refs: [ref] }, // exports only see this one ref
+        nameTemplate: '{{log.station}} @ {{log.ref}} {{compact op.date}}',
+        titleTemplate: '{{>RefActivityTitle}}'
       }]
     }
   },
@@ -117,7 +127,7 @@ const ReferenceHandler = {
   adifFieldsForOneQSO: ({ qso, operation }) => {
     const activationRef = findRef(operation, Info.activationType)
     const fields = []
-    if (activationRef) fields.push({ MY_SIG_INFO: activationRef.ref })
+    if (activationRef) fields.push({ MY_SIG: Info.shortName }, { MY_SIG_INFO: activationRef.ref })
 
     return fields
   },
