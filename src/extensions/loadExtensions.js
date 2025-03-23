@@ -31,16 +31,11 @@ import QRZExtension from './data/qrz/QRZExtension'
 import HamDBExtension from './data/hamdb/HamDBExtension'
 import HamQTHExtension from './data/hamqth/HamQTHExtension'
 import Ham2KLoFiSyncExtension from './data/ham2k-lofi-sync/Ham2KLoFiSyncExtension'
-<<<<<<< HEAD
-
-import NYQPExtension from './contests/nyqp/NYQPExtension'
-import RSGBBackpackersExtension from './contests/rsgb-backpackers/RSGBBackpackersExtension'
-=======
 import SpotHistoryExtension from './data/spot-history/SpotHistoryExtension'
 import SpotDiscordExtension from './data/spot-discord/SpotDiscordExtension'
 import QSOPartiesExtension from './contests/qp/QSOPartiesExtension'
 import SimpleContestExtension from './contests/simple-contest/SimpleContestExtension'
->>>>>>> main
+import RSGBBackpackersExtension from './contests/rsgb-backpackers/RSGBBackpackersExtension'
 
 import RadioCommands from './commands/RadioCommands'
 import TimeCommands from './commands/TimeCommands'
