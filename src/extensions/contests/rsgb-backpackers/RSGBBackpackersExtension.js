@@ -73,9 +73,10 @@ const ReferenceHandler = {
     if (ref?.type === Info?.key) {
       return [{
         format: 'reg1test',
-        nameTemplate: settings.useCompactFileNames ? `{call}-${Info.shortName}-{compactDate}` : `{date} {call} for ${Info.shortName}`,
+        exportName: 'RSGB Backpackers REG1TEST',
         exportType: 'rsgb-backpackers-reg1test',
-        titleTemplate: `{call}: ${Info.name} on {date}`
+        nameTemplate: '{{>RefActivityName}}',
+        titleTemplate: '{{>RefActivityTitle}}'
       }]
     }
   },
