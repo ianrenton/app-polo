@@ -14,6 +14,7 @@ import ADIFExtension from './core/adif'
 import POTAExtension from './activities/pota/POTAExtension'
 import SOTAExtension from './activities/sota/SOTAExtension'
 import GMAExtension from './activities/gma/GMAExtension'
+import MOTAExtension from './activities/mota/MOTAExtension'
 import WWFFExtension from './activities/wwff/WWFFExtension'
 import FDExtension from './activities/fd/FDExtension'
 import WFDExtension from './activities/wfd/WFDExtension'
@@ -35,6 +36,7 @@ import SpotHistoryExtension from './data/spot-history/SpotHistoryExtension'
 import SpotDiscordExtension from './data/spot-discord/SpotDiscordExtension'
 import QSOPartiesExtension from './contests/qp/QSOPartiesExtension'
 import SimpleContestExtension from './contests/simple-contest/SimpleContestExtension'
+import GAPOTAExtension from './contests/gapota/GAPOTAExtension'
 import RSGBBackpackersExtension from './contests/rsgb-backpackers/RSGBBackpackersExtension'
 
 import RadioCommands from './commands/RadioCommands'
@@ -59,6 +61,7 @@ export const loadExtensions = () => async (dispatch, getState) => {
   registerExtension(POTAExtension)
   registerExtension(SOTAExtension)
   registerExtension(GMAExtension)
+  registerExtension(MOTAExtension)
   registerExtension(WWFFExtension)
   registerExtension(CustomExtension)
   registerExtension(WFDExtension)
@@ -72,8 +75,8 @@ export const loadExtensions = () => async (dispatch, getState) => {
 
   registerExtension(QSOPartiesExtension)
   registerExtension(SimpleContestExtension)
+  registerExtension(GAPOTAExtension)
   registerExtension(RSGBBackpackersExtension)
-
   registerExtension(RadioCommands)
   registerExtension(TimeCommands)
   registerExtension(DebuggingCommands)

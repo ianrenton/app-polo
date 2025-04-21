@@ -27,7 +27,7 @@ export const getOperationTemplate = ({ operation, settings }) => {
   const includedRefTypes = {}
   template.refs = []
   for (const ref of (operation?.refs ?? [])) {
-    if (includedRefTypes[ref.type]) continue
+    if (includedRefTypes[ref?.type] || !ref?.type) continue
 
     includedRefTypes[ref.type] = true
 
@@ -106,6 +106,8 @@ export const getAllOperationTemplates = ({ settings, operations }) => {
 
 export const fillOperationFromTemplate = (operation, template) => async (dispatch, getState) => {
   const uuid = operation.uuid
+
+  operation.refs = operation.refs ?? []
 
   const settings = selectSettings(getState())
   const updates = {}

@@ -8,9 +8,9 @@
 
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { ScrollView, View } from 'react-native'
+import { Alert, ScrollView, View } from 'react-native'
 import { Checkbox, List, Menu, Text } from 'react-native-paper'
-import DocumentPicker from 'react-native-document-picker'
+import { pick, keepLocalCopy } from '@react-native-documents/picker'
 import RNFetchBlob from 'react-native-blob-util'
 import Share from 'react-native-share'
 
@@ -106,8 +106,16 @@ export default function OperationDataScreen (props) {
   }, [dispatch, operation])
 
   const handleImportADIF = useCallback(() => {
-    DocumentPicker.pickSingle({ mode: 'import', copyTo: 'cachesDirectory' }).then(async (file) => {
-      const filename = decodeURIComponent(file.fileCopyUri.replace('file://', ''))
+    pick({ mode: 'import' }).then(async (files) => {
+      const [localCopy] = await keepLocalCopy({
+        files: files.map(file => ({
+          uri: file.uri,
+          fileName: file.name ?? 'fallbackName'
+        })),
+        destination: 'cachesDirectory'
+      })
+
+      const filename = decodeURIComponent(localCopy.localUri.replace('file://', ''))
       const { adifCount, importCount } = await dispatch(importADIFIntoOperation(filename, operation, qsos))
       trackEvent('import_adif', {
         import_count: importCount,
@@ -120,6 +128,7 @@ export default function OperationDataScreen (props) {
       if (error.indexOf('cancelled') >= 0) {
         // ignore
       } else {
+        Alert.alert('Error importing ADIF', error.message)
         reportError('Error importing ADIF', error)
       }
     })
@@ -153,7 +162,7 @@ export default function OperationDataScreen (props) {
             />
             <Ham2kListItem
               key={option.fileName}
-              title={option.exportLabel}
+              title={option.exportLabel || option.exportName}
               description={option.fileName}
               left={() => <List.Icon style={{ marginLeft: styles.oneSpace * 2 }} color={option.devMode ? styles.colors.devMode : styles.colors.onBackground} icon={option.icon ?? option.handler.icon ?? 'file-outline'} />}
               onPress={() => readyToExport && handleExports({ options: [option] })}

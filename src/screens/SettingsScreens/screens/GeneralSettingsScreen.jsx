@@ -128,10 +128,17 @@ export default function GeneralSettingsScreen ({ navigation }) {
             onPress={() => dispatch(setSettings({ useGrid8: !settings.useGrid8 }))}
           />
 
+          <Ham2kListItem
+            title="Export Settings"
+            description={'Customize filenames and other settings'}
+            left={() => <List.Icon style={{ marginLeft: styles.oneSpace * 2 }} icon="file-export-outline" />}
+            onPress={() => navigation.navigate('ExportSettings')}
+          />
+
           <Ham2kListSubheader>Privacy</Ham2kListSubheader>
           <Ham2kListItem
             title="Share app usage data"
-            description={settings.consentAppData ? 'Help us improve the app by sharing usage, crash and performance data' : 'Keep app usage data private'}
+            description={settings.consentAppData ? 'Help us improve the app by sharing usage, crash and performance data' : 'Keep app usage data private.\nThe Ham2K team won\'t be able to detect crashes or other issues.'}
             left={() => <List.Icon style={{ marginLeft: styles.oneSpace * 2 }} icon="cellphone-lock" />}
             right={() => <Switch value={!!settings.consentAppData} onValueChange={(value) => dispatch(setSettings({ consentAppData: value })) } />}
             onPress={() => dispatch(setSettings({ consentAppData: !settings.consentAppData }))}

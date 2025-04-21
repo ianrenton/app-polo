@@ -14,7 +14,7 @@ import { selectRawSettings } from '../settings'
 import { selectRuntimeOnline } from '../runtime'
 import { setFeatureFlags } from './systemSlice'
 
-const DEBUG = false
+const DEBUG = true
 
 export const fetchFeatureFlags = () => async (dispatch, getState) => {
   const state = getState()
@@ -37,50 +37,69 @@ export const fetchFeatureFlags = () => async (dispatch, getState) => {
     annotateFromCountryFile(callInfo)
     const baseCall = callInfo.baseCall
 
-    const cleanCall = call.toLowerCase().replace(/[^a-z0-9]/g, '-')
-    const cleanBaseCall = baseCall.toLowerCase().replace(/[^a-z0-9]/g, '-')
-    const cleanEntityPrefix = callInfo.entityPrefix.toLowerCase().replace(/[^a-z0-9]/g, '-')
-    const callFolder = cleanBaseCall.slice(0, 2)
+    const cleanCall = call?.toLowerCase()?.replace(/[^a-z0-9]/g, '-')
+    const cleanBaseCall = baseCall?.toLowerCase()?.replace(/[^a-z0-9]/g, '-')
+    const cleanEntityPrefix = callInfo?.entityPrefix?.toLowerCase()?.replace(/[^a-z0-9]/g, '-')
+    const callFolder = cleanBaseCall?.slice(0, 2)
 
     if (cleanEntityPrefix) locations.push(`entities/${cleanEntityPrefix}.json`)
-    if (cleanCall !== cleanBaseCall) locations.push(`${callFolder}/${cleanBaseCall}.json`)
-    locations.push(`${callFolder}/${cleanCall}.json`)
+    if (cleanCall && cleanCall !== cleanBaseCall) locations.push(`${callFolder}/${cleanBaseCall}.json`)
+    if (cleanCall) locations.push(`${callFolder}/${cleanCall}.json`)
   }
 
   let flags = {}
   const fetchedLocations = {}
-  while (locations.length > 0) {
-    const location = locations.pop()
-    try {
-      const response = await fetch(`${Config.POLO_FLAGS_BASE_URL}/${location}`)
-      fetchedLocations[location] = true
+  try {
+    while (locations.length > 0) {
+      const location = locations.pop()
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 4000) // 4 second timeout
 
-      if (DEBUG) console.log('Fetching flags from', `${Config.POLO_FLAGS_BASE_URL}/${location}`)
+        const response = await fetch(`${Config.POLO_FLAGS_BASE_URL}/${location}`, {
+          signal: controller.signal
+        })
+        clearTimeout(timeoutId) // Clear timeout if fetch succeeds
 
-      if (response.ok) {
-        const data = await response.json()
-        if (DEBUG) console.log('-- data', data)
+        fetchedLocations[location] = true
 
-        if (typeof data?.more === 'string') {
-          if (!fetchedLocations[data.more]) {
-            locations.push(data.more)
-          }
-        } else if (Array.isArray(data?.more)) {
-          data.more.forEach(item => {
-            if (typeof item === 'string' && !fetchedLocations[item]) {
-              locations.push(item)
+        if (DEBUG) console.log('Fetching flags from', `${Config.POLO_FLAGS_BASE_URL}/${location}`)
+
+        if (response.ok) {
+          const data = await response.json()
+          if (DEBUG) console.log('-- data', data)
+
+          if (typeof data?.more === 'string') {
+            if (!fetchedLocations[data.more]) {
+              locations.push(data.more)
             }
-          })
-        }
+          } else if (Array.isArray(data?.more)) {
+            data.more.forEach(item => {
+              if (typeof item === 'string' && !fetchedLocations[item]) {
+                locations.push(item)
+              }
+            })
+          }
 
-        flags = deepmerge(flags, data)
-      } else {
-        if (DEBUG) console.log('-- status', response.status)
+          flags = deepmerge(flags, data)
+        } else {
+          if (DEBUG) console.log('-- status', response.status)
+        }
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timed out after 4 seconds') // Re-raise to stop all further fetches
+        }
+        console.error('Error fetching flags from', location, error)
       }
-    } catch (error) {
-      if (DEBUG) console.log('Error fetching flags from', location, error)
+    }
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('Request timed out after 4 seconds')
+    } else {
+      console.error('Error fetching flags', error)
     }
   }
   console.log('Flags', flags)
+
   dispatch(setFeatureFlags(flags))
 }
